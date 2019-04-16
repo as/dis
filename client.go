@@ -16,6 +16,10 @@ const (
 	BufferHiWater = BufferCap / 2
 	ChanCap       = 32768
 	ChanLoWater   = 32
+
+	DefaultTTL = 300 * time.Second
+	DefaultReadDeadline = time.Second / 2
+
 )
 
 type ReplyMode string
@@ -29,14 +33,32 @@ const (
 var ErrFirstDial = errors.New("initial dial failed")
 
 type Config struct {
-	Addr string
-	TTL  time.Duration
+	Addr         string
+	ReadDeadline time.Duration
+	TTL          int // seconds
+	Dialer       interface {
+		Dial(network, address string) (net.Conn, error)
+	}
+}
+
+func (c Config) ensure() Config {
+	_, _, err := net.SplitHostPort(c.Addr)
+	if err != nil {
+		c.Addr = net.JoinHostPort(c.Addr, "6379")
+	}
+	if c.TTL == 0 {
+		c.TTL = int(DefaultTTL)/int(time.Second)
+	}
+	if c.ReadDeadline == 0 {
+		c.ReadDeadline = DefaultReadDeadline
+	}
+	return c
 }
 
 type Client struct {
 	Config
 
-	cmd  chan *Cmd
+	cmd  chan Cmd
 	done chan bool
 
 	conn net.Conn
@@ -44,8 +66,9 @@ type Client struct {
 }
 
 func NewClient(conf Config) *Client {
+	conf = conf.ensure()
 	c := &Client{Config: conf}
-	c.cmd = make(chan *Cmd, 1)
+	c.cmd = make(chan Cmd, ChanCap)
 	c.done = make(chan bool)
 	go c.run()
 	if c.dial() == nil {
@@ -53,6 +76,7 @@ func NewClient(conf Config) *Client {
 	}
 	return c
 }
+
 
 func (c *Client) Set(key, value string, ex time.Duration) {
 	c.cmd <- Cmd{}.Set(key, value).Ex(int(ex / time.Second))
