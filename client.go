@@ -33,29 +33,6 @@ const (
 
 var ErrFirstDial = errors.New("initial dial failed")
 
-type Config struct {
-	Addr         string
-	ReadDeadline time.Duration
-	TTL          int // seconds
-	Dialer       interface {
-		Dial(network, address string) (net.Conn, error)
-	}
-}
-
-func (c Config) ensure() Config {
-	_, _, err := net.SplitHostPort(c.Addr)
-	if err != nil {
-		c.Addr = net.JoinHostPort(c.Addr, "6379")
-	}
-	if c.TTL == 0 {
-		c.TTL = int(DefaultTTL) / int(time.Second)
-	}
-	if c.ReadDeadline == 0 {
-		c.ReadDeadline = DefaultReadDeadline
-	}
-	return c
-}
-
 type Client struct {
 	cmd  chan Cmd
 	conn net.Conn
@@ -106,13 +83,6 @@ func (c *Client) Set(key, value string, sec int) {
 
 func (c *Client) Err() error {
 	return c.err
-}
-
-func (c *Config) Dial(network, address string) (net.Conn, error) {
-	if c.Dialer == nil {
-		return net.Dial(network, address)
-	}
-	return c.Dialer.Dial(network, address)
 }
 
 // TODO(as): remove log statements
