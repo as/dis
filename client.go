@@ -90,18 +90,22 @@ func (c *Client) Err() error {
 	return c.err
 }
 
+// TODO(as): remove log statements
 func (c *Client) dial() net.Conn {
-	var err error
-	if c.conn != nil && err == nil {
+	if c.conn != nil {
 		return c.conn
 	}
+	log.Println("redis: dial: new tcp connection")
+	var err error
 	for i := time.Duration(0); i < RetryNum; i++ {
 		time.Sleep(RetryBaseDelay * i)
-		if c.conn, err = net.Dial("tcp", c.Addr); err == nil {
+		if c.conn, err = c.Dial("tcp", c.Addr); err == nil {
 			break
 		}
+		log.Println("redis: dial:", err)
 	}
 	if err != nil {
+		log.Println("redis: dial:", err)
 		return nil
 	}
 	if DisableServerReply {
