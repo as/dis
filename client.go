@@ -8,15 +8,14 @@ import (
 
 const (
 	DisableServerReply = true
-
-	RetryNum       = 3
-	RetryBaseDelay = time.Second
+	RetryNum           = 15
+	RetryBaseDelay     = time.Second
 
 	FlushEvery    = time.Second + time.Second/7
-	BufferCap     = 32678
+	BufferCap     = 32768
 	BufferHiWater = BufferCap / 2
-	ChanCap       = 16
-	ChanLoWater   = ChanCap / 5
+	ChanCap       = 32768
+	ChanLoWater   = 32
 )
 
 type ReplyMode string
