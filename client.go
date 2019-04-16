@@ -78,8 +78,12 @@ func NewClient(conf Config) *Client {
 }
 
 
-func (c *Client) Set(key, value string, ex time.Duration) {
-	c.cmd <- Cmd{}.Set(key, value).Ex(int(ex / time.Second))
+func (c *Client) Set(key, value string, sec int) {
+	select {
+	case c.cmd <- Cmd{}.Set(key, value).Ex(sec):
+//	case <-time.After(time.Second):
+//		log.Println("redis: writer: channel at capacity (can not connect to redis)")
+	}
 }
 
 func (c *Client) Err() error {
