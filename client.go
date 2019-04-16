@@ -56,13 +56,12 @@ func (c Config) ensure() Config {
 }
 
 type Client struct {
-	Config
-
 	cmd  chan Cmd
-	done chan bool
-
 	conn net.Conn
+	done chan bool
 	err  error
+	Config
+	buf []byte // [BufferCap]byte
 }
 
 func NewClient(conf Config) *Client {
@@ -122,31 +121,37 @@ log.Println("redis: dial:", err)
 
 func (c *Client) run() {
 	tm := time.NewTimer(FlushEvery)
-	buf := make([]byte, 0, BufferHiWater)
-	flush := func() {
-		if len(buf) > 0 {
-			if conn := c.dial(); conn != nil {
-				c.dial().Write(buf)
-				buf = buf[:0]
-			}
-		}
-	}
+	c.buf = make([]byte, 0, BufferCap)
 	for {
 		select {
-		default:
-		case <-c.done:
-			return
-		}
-		select {
 		case <-tm.C:
-			flush()
+			c.flush()
 		case cmd := <-c.cmd:
-			buf = append(buf, cmd.Bytes()...)
-			if len(c.cmd) <= ChanLoWater {
-				flush()
+			c.buf = append(c.buf, cmd.Bytes()...)
+			if len(c.buf) > BufferHiWater || len(c.cmd) <= ChanLoWater {
+				c.flush()
 			}
 		case <-c.done:
 			return
 		}
 	}
+}
+
+func (c *Client) flush() {
+	if len(c.buf) == 0 {
+		return
+	}
+	var conn net.Conn
+Redial:
+	conn = c.dial()
+	if conn == nil {
+		log.Println("redis: flush: retry logic could not reconnect, try again")
+		goto Redial
+	}
+	_, err := conn.Write(c.buf)
+	if err != nil {
+		c.conn = nil
+		goto Redial
+	}
+	c.buf = c.buf[:0]
 }
