@@ -2,6 +2,7 @@ package dis
 
 import (
 	"errors"
+	"log"
 	"net"
 	"time"
 )
@@ -17,9 +18,8 @@ const (
 	ChanCap       = 32768
 	ChanLoWater   = 32
 
-	DefaultTTL = 300 * time.Second
+	DefaultTTL          = 300 * time.Second
 	DefaultReadDeadline = time.Second / 2
-
 )
 
 type ReplyMode string
@@ -47,7 +47,7 @@ func (c Config) ensure() Config {
 		c.Addr = net.JoinHostPort(c.Addr, "6379")
 	}
 	if c.TTL == 0 {
-		c.TTL = int(DefaultTTL)/int(time.Second)
+		c.TTL = int(DefaultTTL) / int(time.Second)
 	}
 	if c.ReadDeadline == 0 {
 		c.ReadDeadline = DefaultReadDeadline
@@ -77,12 +77,11 @@ func NewClient(conf Config) *Client {
 	return c
 }
 
-
 func (c *Client) Set(key, value string, sec int) {
 	select {
 	case c.cmd <- Cmd{}.Set(key, value).Ex(sec):
-//	case <-time.After(time.Second):
-//		log.Println("redis: writer: channel at capacity (can not connect to redis)")
+		//	case <-time.After(time.Second):
+		//		log.Println("redis: writer: channel at capacity (can not connect to redis)")
 	}
 }
 
@@ -90,6 +89,12 @@ func (c *Client) Err() error {
 	return c.err
 }
 
+func (c *Config) Dial(network, address string) (net.Conn, error) {
+	if c.Dialer == nil {
+		return net.Dial(network, address)
+	}
+	return c.Dialer.Dial(network, address)
+}
 // TODO(as): remove log statements
 func (c *Client) dial() net.Conn {
 	if c.conn != nil {
@@ -102,7 +107,8 @@ func (c *Client) dial() net.Conn {
 		if c.conn, err = c.Dial("tcp", c.Addr); err == nil {
 			break
 		}
-		log.Println("redis: dial:", err)
+		
+log.Println("redis: dial:", err)
 	}
 	if err != nil {
 		log.Println("redis: dial:", err)
