@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"net"
 	"testing"
-	"time"
 )
 
 func TestClient(t *testing.T) {
-	c := NewClient(Config{"localhost:6379", time.Second})
+	c := NewClient(Config{Addr: "localhost:6379", TTL: 1})
 	if c.Err() == ErrFirstDial {
 		t.Skip("no redis server yet (and nothing running on 6379)")
 		return
