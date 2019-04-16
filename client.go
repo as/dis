@@ -1,6 +1,7 @@
 package dis
 
 import (
+	"bufio"
 	"errors"
 	"log"
 	"net"
@@ -76,6 +77,25 @@ func NewClient(conf Config) *Client {
 	return c
 }
 
+// Get is only used for testing right now. As such, it creates a fresh
+// connection per call. Don't use it for anything other than writing tests
+func (c *Client) Get(key string) string {
+	conn, _ := net.Dial("tcp", c.Addr)
+	if conn == nil {
+		return ""
+	}
+	defer conn.Close()
+
+	conn.SetWriteDeadline(time.Now().Add(time.Second))
+	conn.Write(Cmd{}.Get(key).Bytes())
+
+	conn.SetReadDeadline(time.Now().Add(time.Second))
+	sc := bufio.NewScanner(conn)
+	sc.Scan()
+	sc.Scan()
+	return sc.Text()
+}
+
 func (c *Client) Set(key, value string, sec int) {
 	select {
 	case c.cmd <- Cmd{}.Set(key, value).Ex(sec):
@@ -94,6 +114,7 @@ func (c *Config) Dial(network, address string) (net.Conn, error) {
 	}
 	return c.Dialer.Dial(network, address)
 }
+
 // TODO(as): remove log statements
 func (c *Client) dial() net.Conn {
 	if c.conn != nil {
@@ -106,8 +127,8 @@ func (c *Client) dial() net.Conn {
 		if c.conn, err = c.Dial("tcp", c.Addr); err == nil {
 			break
 		}
-		
-log.Println("redis: dial:", err)
+
+		log.Println("redis: dial:", err)
 	}
 	if err != nil {
 		log.Println("redis: dial:", err)
