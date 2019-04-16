@@ -12,7 +12,7 @@ const (
 	RetryNum       = 3
 	RetryBaseDelay = time.Second
 
-	FlushEvery    = time.Second
+	FlushEvery    = time.Second + time.Second/7
 	BufferCap     = 32678
 	BufferHiWater = BufferCap / 2
 	ChanCap       = 16
