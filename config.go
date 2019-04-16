@@ -1,5 +1,10 @@
 package dis
 
+import (
+	"net"
+	"time"
+)
+
 // Config configures the client
 type Config struct {
 	Addr         string
